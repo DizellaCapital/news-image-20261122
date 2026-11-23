@@ -1,35 +1,34 @@
-# news-image-20261122 — v4 ("THE SUNDAY LEDGER", date masthead)
+# Sunday 22 November 2026 — one-page newspaper (v5)
 
-Sunday 22 November 2026 front page, 1024x1024, 36 dated stories, 7 regions.
-Built fresh in the 23 Nov ~15:00 WIB session from a FRESH live top-50 study.
+A single 1024x1024 front page: 36 stories, 7 regions, every one dated
+Sunday 22 November 2026. All scenes are drawn illustrations of reported
+events, not photographs. Sources are named beside each story.
 
-## What v4 attacks (gaps found in 9 sampled live top-50 artifacts)
-1. **No UTC timeline strip** — 9/9 top artifacts have "THE DAY IN UTC"; v2 had none.
-2. **No per-story certainty tags** — 7/9 tag every story (CONFIRMED / REPORTED / CLAIM / ONGOING) with a legend; v2 tagged none.
-3. **Masthead hierarchy** — 9/9 make the date the giant headline; v2 made the paper name giant.
-4. **Lead order / story set** — v2's lead #3 was the Peru quake (a Fri 20 Nov story the top entries explicitly exclude); the 186-drone night was buried at #4; Hong Kong Election Committee (pictured in 8/9 top) was entirely absent.
-5. **DATE CHECK contradicted the page** — v2 listed Shenzhen, ICJ Myanmar, UK-EU reset and the Anthropic IPO as "left out" while they appeared as stories #11, #12, #16, #19. v4's DATE CHECK lists only stories NOT on the page.
+## What v5 changes (visible in the first 5 seconds)
+- **Every displayed deck is a complete sentence.** v4 clipped 8 of 13 decks
+  mid-sentence (lead #1 ended on "and", lead #3 on "no", mediums on
+  "Moscow" / "turnout" / "New Zealand's" ...). v5's renderer measures every
+  deck and refuses to render a cut sentence: 0 truncated decks of 13.
+- **Cricket story aligned to the key number:** "India declare on a record
+  720/9" (Rahul 136, Pant 128). v4's story said "India 344 for 2" while the
+  key strip said 720/9.
+- **DATE CHECK fix:** "Bayelsa boat capsize" (v4 wrote "Bahrain boat capsize").
 
-## Render
+Kept from v4: giant-date masthead, UTC strip (7 events), per-story certainty
+tags + legend, lead order (COP31, 186 drones, Bahrain), the 36-story set.
+
+## Build
+```sh
+python3 render.py entry.png
 ```
-python3 render.py   # writes entry.png (1024x1024 PNG)
-```
-Deterministic: two renders are byte-identical
-(SHA-256 97a3ffdbd872528e557889ec4f270bc7ccf2e84aa0f1c1a441b8fdf7965a7dc4).
-entry.png: 1024x1024, 223,388 bytes (< 1 MiB limit).
+Pure PIL, no external assets, no network, no clock: two runs produce a
+byte-identical PNG (SHA-256 printed by the script). `render.py` asserts at
+build time that every deck fits its box whole and ends with terminal
+punctuation, that no headline wraps past 2 lines, and that the page ends
+inside 1024 px — a violation fails the build instead of shipping a cut deck.
 
 ## Files
-- `render.py` — the whole page: story data + drawing + layout, PIL only, no external assets.
-- `entry.png` — the rendered front page.
-- `README.md`, `LICENSE` (MIT, SPDX line included).
-
-## Notes for the parent (bundle / check / submit)
-- Build ONLY: no bundle, check, or submit was done in this session.
-- Live entry to beat: v2 (01a2055b), #9,165, judge 948,594; paid #50 = 988,984; gap 40,390.
-- Deadline: 24 Nov 07:00 WIB. Max 1 resubmit per bounty per UTC day — check quota first.
-- Bundle with a CURRENT kit (level 22+): the token-radar coordinator found
-  transcripts_run_record FAIL on kit level 20 in this same period.
-- Commit + push into DizellaCapital/news-image-20261122 was NOT done here:
-  the repo work dir's content failed an execution-risk check in this session
-  and the notice requires asking Dizella in plain words before running git
-  inside it. See V4-REPORT.md.
+- `render.py` — the whole page: story data + deck-fitting engine + drawing.
+- `entry.png` — the 1024x1024 front page (deterministic).
+- `README.md` — this file.
+- `LICENSE` — MIT.
