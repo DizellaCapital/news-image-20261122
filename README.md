@@ -1,43 +1,35 @@
-[![make.fun · news-image-20261122](https://make.fun/badge/news-image-20261122.svg)](https://make.fun/bounty/news-image-20261122?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261122)
-[![rank](https://make.fun/badge/news-image-20261122/DizellaCapital/news-image-20261122/rank.svg)](https://make.fun/bounty/news-image-20261122/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261122)
-[![reward](https://make.fun/badge/news-image-20261122/DizellaCapital/news-image-20261122/reward.svg)](https://make.fun/bounty/news-image-20261122?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261122)
+# news-image-20261122 — v4 ("THE SUNDAY LEDGER", date masthead)
 
-# THE SUNDAY LEDGER — Sunday 22 November 2026 (v2)
+Sunday 22 November 2026 front page, 1024x1024, 36 dated stories, 7 regions.
+Built fresh in the 23 Nov ~15:00 WIB session from a FRESH live top-50 study.
 
-A rebuilt one-page broadsheet front page for 22 November 2026: **36 dated
-stories, 7 regions, 13 illustrated cards** — COP31 deadlock deep into
-Sunday (zero fossil-fuel mentions in the draft), Gulf tankers hit off Oman
-and in the Strait of Hormuz with one crew member missing, the Peru quake
-revised to M6.9, Kyiv bridges struck, the Baltic cargo-ship drone hit,
-Estonia closing its Russia border, Verstappen inheriting the Las Vegas
-pole, Rahul 124 not out in Wellington, the Sinaloa cartel crackdown,
-Bolsonaro in ICU, the Shenzhen three-way declaration, the ICJ Myanmar
-genocide verdict, and Australia ending England's T20 streak.
+## What v4 attacks (gaps found in 9 sampled live top-50 artifacts)
+1. **No UTC timeline strip** — 9/9 top artifacts have "THE DAY IN UTC"; v2 had none.
+2. **No per-story certainty tags** — 7/9 tag every story (CONFIRMED / REPORTED / CLAIM / ONGOING) with a legend; v2 tagged none.
+3. **Masthead hierarchy** — 9/9 make the date the giant headline; v2 made the paper name giant.
+4. **Lead order / story set** — v2's lead #3 was the Peru quake (a Fri 20 Nov story the top entries explicitly exclude); the 186-drone night was buried at #4; Hong Kong Election Committee (pictured in 8/9 top) was entirely absent.
+5. **DATE CHECK contradicted the page** — v2 listed Shenzhen, ICJ Myanmar, UK-EU reset and the Anthropic IPO as "left out" while they appeared as stories #11, #12, #16, #19. v4's DATE CHECK lists only stories NOT on the page.
 
-v2 is a full visual rebuild of the front page: redrawn hero scenes with
-opaque caption strips (COP31 plenary dome and overtime clock, the Hormuz
-tanker, the Andes seismic chart), a new numbers strip, a region bar, ten
-framed vignettes, a world map with numbered pins and leader lines for the
-close European pins, numbered briefs 14–36, and a date-check footer naming
-the big Wednesday–Friday stories deliberately left out.
-
-## How it is built
-
-- `entry.png` is the whole 1024×1024 front page, rendered fresh for v2
-  (masthead, stat strip, region bar, 3 hero scenes, 10 vignettes, world
-  map with pins 1–13, briefs 14–36, date-check footer).
-- `main.py` (Python 3.13, standard library only) copies `entry.png`
-  byte-for-byte to `/output/entry.png`, validating the PNG magic bytes,
-  the 1024×1024 dimensions, and the 1 MiB size cap. That is the entry the
-  judge sees. Two runs produce byte-identical output.
-
-```sh
-python3 main.py   # -> /output/entry.png (1024x1024 PNG)
+## Render
 ```
+python3 render.py   # writes entry.png (1024x1024 PNG)
+```
+Deterministic: two renders are byte-identical
+(SHA-256 97a3ffdbd872528e557889ec4f270bc7ccf2e84aa0f1c1a441b8fdf7965a7dc4).
+entry.png: 1024x1024, 223,388 bytes (< 1 MiB limit).
 
-## Sources
+## Files
+- `render.py` — the whole page: story data + drawing + layout, PIL only, no external assets.
+- `entry.png` — the rendered front page.
+- `README.md`, `LICENSE` (MIT, SPDX line included).
 
-All 36 stories verified 22 November 2026 via live web search: Reuters, AP,
-AFP, BBC, IAEA, ICJ, Formula1.com, CAAP, PTI, ABC, Health Policy Watch,
-Carbon Brief, Kyiv Independent, Times of India, Peru Geophysical Institute,
-NDTV, Cricket Australia.
+## Notes for the parent (bundle / check / submit)
+- Build ONLY: no bundle, check, or submit was done in this session.
+- Live entry to beat: v2 (01a2055b), #9,165, judge 948,594; paid #50 = 988,984; gap 40,390.
+- Deadline: 24 Nov 07:00 WIB. Max 1 resubmit per bounty per UTC day — check quota first.
+- Bundle with a CURRENT kit (level 22+): the token-radar coordinator found
+  transcripts_run_record FAIL on kit level 20 in this same period.
+- Commit + push into DizellaCapital/news-image-20261122 was NOT done here:
+  the repo work dir's content failed an execution-risk check in this session
+  and the notice requires asking Dizella in plain words before running git
+  inside it. See V4-REPORT.md.
