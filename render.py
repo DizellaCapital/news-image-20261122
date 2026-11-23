@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""THE SUNDAY LEDGER v7 -- news-image-20261122 renderer (local only).
+"""THE SUNDAY LEDGER v8 -- news-image-20261122 renderer (local only).
 
 Draws the 1024x1024 front page for Sunday 22 November 2026. Runs locally
 with PIL; the grader never runs this file (main.py is the stdlib-only
 entry program that copies the rendered entry.png to the output dir).
 
-v7 named change vs v6-fix: the COP31 lead is corrected -- the final text
-LANDED on Sunday morning (headline + deck + kicker + UTC strip), the Iran
-lead deck gains the Al-Riffa / Awali place names, the DATE CHECK drops the
-uncorroborated Antarctic IPO item, and the world map is drawn as a
-recognisable dotted world map instead of abstract blobs.
+v8 named change vs v7: (1) the COP31 lead illustration is cleaned up --
+the sign whose "FUELS" line was clipped at the bottom edge is removed,
+the conference scene is drawn with no embedded text (globe, delegates,
+table, clock); (2) the world map is redrawn with recognisable land --
+dark navy background, fine light dot grid, refined land ellipses, red
+numbered pins (the #1 pattern). The COP31 framing from v7 is KEPT
+("final text lands" matches 4 of 5 top entries). All other content is
+identical to v7.
 """
 
 import hashlib
@@ -23,11 +26,11 @@ W, H = 1024, 1024
 CREAM = (246, 239, 219)
 INK = (20, 20, 20)
 NAVY = (26, 42, 74)
+MAP_NAVY = (16, 24, 54)
 RED = (163, 22, 33)
-RED_DK = (140, 18, 28)
 GRAY = (110, 110, 105)
-LIGHT_BLUE = (207, 227, 242)
-LAND = (168, 196, 138)
+MAP_DOT = (196, 212, 235)
+PIN_RED = (200, 40, 40)
 GREEN = (28, 120, 70)
 GOLD = (176, 132, 20)
 PURPLE = (106, 74, 158)
@@ -39,21 +42,21 @@ SANS = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 SANS_B = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
 
-def font(path, size):
+def load_font(path, size):
     return ImageFont.truetype(path, size)
 
 
-def text_w(draw, s, f):
+def measure(draw, s, f):
     return draw.textlength(s, font=f)
 
 
-def wrap(draw, text, f, max_w):
+def split_lines(draw, text, f, max_w):
     """Greedy word wrap; returns list of lines, each <= max_w."""
     words = text.split()
     lines, cur = [], ""
     for w in words:
         t = (cur + " " + w).strip()
-        if text_w(draw, t, f) <= max_w or not cur:
+        if measure(draw, t, f) <= max_w or not cur:
             cur = t
         else:
             lines.append(cur)
@@ -63,32 +66,32 @@ def wrap(draw, text, f, max_w):
     return lines
 
 
-def draw_wrapped(draw, x, y, text, f, max_w, fill, leading, max_lines=None):
-    lines = wrap(draw, text, f, max_w)
-    if max_lines is not None and len(lines) > max_lines:
-        raise ValueError("text overflows %d lines: %r -> %r" % (max_lines, text, lines))
+def put_lines(draw, x, y, text, f, max_w, fill, leading, limit=None):
+    lines = split_lines(draw, text, f, max_w)
+    if limit is not None and len(lines) > limit:
+        raise ValueError("text overflows %d lines: %r -> %r" % (limit, text, lines))
     for ln in lines:
         draw.text((x, y), ln, font=f, fill=fill)
         y += leading
     return y
 
 
-def chip(draw, x, y, text, bg, fg=(255, 255, 255), f=None, pad_x=5, pad_y=2):
-    f = f or font(SANS_B, 9)
-    tw = text_w(draw, text, f)
-    th = f.size
-    draw.rounded_rectangle([x, y, x + tw + 2 * pad_x, y + th + 2 * pad_y],
+def tag_chip(draw, x, y, text, bg, fg=(255, 255, 255), f=None, pad_x=5, pad_y=2):
+    f = f or load_font(SANS_B, 9)
+    tw = measure(draw, text, f)
+    draw.rounded_rectangle([x, y, x + tw + 2 * pad_x, y + f.size + 2 * pad_y],
                            radius=3, fill=bg)
     draw.text((x + pad_x, y + pad_y - 1), text, font=f, fill=fg)
     return tw + 2 * pad_x
 
 
-def badge(draw, cx, cy, num, r=10):
-    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=NAVY,
+def num_badge(draw, cx, cy, num, r=10, fill=NAVY):
+    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=fill,
                  outline=(255, 255, 255), width=2)
-    f = font(SANS_B, 11)
+    f = load_font(SANS_B, 11)
     t = str(num)
-    draw.text((cx - text_w(draw, t, f) / 2, cy - 8), t, font=f, fill=(255, 255, 255))
+    draw.text((cx - measure(draw, t, f) / 2, cy - 8), t, font=f,
+              fill=(255, 255, 255))
 
 
 # ---------------------------------------------------------------- data
@@ -235,16 +238,17 @@ CERTAINTY_FILL = {
 
 # ---------------------------------------------------------------- scenes
 
-def scene_cop31(d, x, y, w, h):
-    """Conference hall: warm wall, delegate heads, long table, clock."""
+def paint_cop31(d, x, y, w, h):
+    """Conference hall, NO embedded text: globe left, delegates, table,
+    clock right. (v7's sign clipped its 'FUELS' line -- removed.)"""
     d.rectangle([x, y, x + w, y + h], fill=(233, 214, 178))
     d.rectangle([x, y, x + w, y + 10], fill=(196, 160, 110))
-    # sign, top-left, clear of the delegates
-    d.rectangle([x + 10, y + 14, x + 112, y + 38], fill=(255, 255, 255),
-                outline=RED, width=2)
-    f = font(SANS_B, 10)
-    d.text((x + 14, y + 18), "NO FOSSIL", font=f, fill=RED)
-    d.text((x + 14, y + 29), "FUELS", font=f, fill=RED)
+    # globe, top-left: ocean disc with two land patches
+    gx, gy, gr = x + 30, y + 28, 17
+    d.ellipse([gx - gr, gy - gr, gx + gr, gy + gr], fill=(70, 120, 180),
+              outline=(40, 80, 130), width=2)
+    d.ellipse([gx - 10, gy - 12, gx + 2, gy - 2], fill=(90, 150, 90))
+    d.ellipse([gx - 2, gy + 2, gx + 12, gy + 12], fill=(110, 160, 90))
     # clock, top-right
     d.ellipse([x + w - 44, y + 10, x + w - 10, y + 44], fill=(250, 250, 245),
               outline=INK, width=2)
@@ -252,7 +256,7 @@ def scene_cop31(d, x, y, w, h):
     d.line([x + w - 27, y + 27, x + w - 17, y + 31], fill=INK, width=2)
     # delegates along the bottom: heads above the table
     for i in range(5):
-        cx = x + 36 + i * 58
+        cx = x + 96 + i * 46
         d.ellipse([cx - 10, y + 42, cx + 10, y + 62], fill=(90, 50, 40))
         d.polygon([(cx - 18, y + 72), (cx - 9, y + 60),
                    (cx + 9, y + 60), (cx + 18, y + 72)],
@@ -261,7 +265,7 @@ def scene_cop31(d, x, y, w, h):
     d.rectangle([x, y + h - 8, x + w, y + h], fill=(120, 82, 50))
 
 
-def scene_drones(d, x, y, w, h):
+def paint_drones(d, x, y, w, h):
     """Night city under drone attack: lit windows, drones, searchlight."""
     d.rectangle([x, y, x + w, y + h], fill=(16, 24, 54))
     for i in range(30):
@@ -283,7 +287,7 @@ def scene_drones(d, x, y, w, h):
                   fill=(255, 220, 100))
 
 
-def scene_radars(d, x, y, w, h):
+def paint_radars(d, x, y, w, h):
     """Two radar dishes under a night sky, flames, a ship, a curved arrow."""
     d.rectangle([x, y, x + w, y + h], fill=(16, 24, 54))
     for i in range(24):
@@ -302,7 +306,7 @@ def scene_radars(d, x, y, w, h):
           width=3)
 
 
-def scene_tanker(d, x, y, w, h):
+def paint_tanker(d, x, y, w, h):
     d.rectangle([x, y, x + w, y + h], fill=(30, 60, 110))
     d.rectangle([x, y + h - 16, x + w, y + h], fill=(20, 40, 80))
     d.rectangle([x + 14, y + h - 30, x + w - 14, y + h - 14], fill=(150, 30, 30))
@@ -311,7 +315,7 @@ def scene_tanker(d, x, y, w, h):
                     fill=c)
 
 
-def scene_bridges(d, x, y, w, h):
+def paint_bridges(d, x, y, w, h):
     d.rectangle([x, y, x + w, y + h], fill=(16, 24, 54))
     for i in range(12):
         d.ellipse([x + (i * 37) % w, y + (i * 17) % 14 + 2,
@@ -324,7 +328,7 @@ def scene_bridges(d, x, y, w, h):
     d.ellipse([x + w - 24, y + 6, x + w - 10, y + 20], fill=(235, 230, 210))
 
 
-def scene_ship(d, x, y, w, h):
+def paint_ship(d, x, y, w, h):
     d.rectangle([x, y, x + w, y + h], fill=(30, 60, 110))
     d.rectangle([x, y + h - 14, x + w, y + h], fill=(20, 40, 80))
     d.rectangle([x + 30, y + h - 30, x + w - 30, y + h - 14], fill=(120, 120, 120))
@@ -334,7 +338,7 @@ def scene_ship(d, x, y, w, h):
                (x + w // 2, y + h - 30)], fill=(255, 200, 60))
 
 
-def scene_fence(d, x, y, w, h):
+def paint_fence(d, x, y, w, h):
     d.rectangle([x, y, x + w, y + h], fill=(210, 210, 200))
     for i in range(9):
         bx = x + 8 + i * 20
@@ -346,7 +350,7 @@ def scene_fence(d, x, y, w, h):
     d.rectangle([x + 8, y + 38, x + 44, y + 46], fill=(240, 240, 240))
 
 
-def scene_chart(d, x, y, w, h):
+def paint_chart(d, x, y, w, h):
     d.rectangle([x, y, x + w, y + h], fill=(240, 244, 238))
     pts = [(x + 10, y + h - 12), (x + 50, y + h - 26), (x + 90, y + h - 20),
            (x + 130, y + h - 34), (x + 170, y + 10)]
@@ -355,7 +359,7 @@ def scene_chart(d, x, y, w, h):
         d.ellipse([px - 4, py - 4, px + 4, py + 4], fill=GREEN)
 
 
-def scene_f1(d, x, y, w, h):
+def paint_f1(d, x, y, w, h):
     d.rectangle([x, y, x + w, y + h], fill=(16, 24, 54))
     d.ellipse([x + 30, y + h - 26, x + 58, y + h - 2], fill=(20, 20, 20),
               outline=(200, 200, 200), width=2)
@@ -366,7 +370,7 @@ def scene_f1(d, x, y, w, h):
     d.rectangle([x + 8, y + h - 12, x + w - 8, y + h - 8], fill=(90, 90, 90))
 
 
-def scene_cricket(d, x, y, w, h):
+def paint_cricket(d, x, y, w, h):
     d.rectangle([x, y, x + w, y + h], fill=(74, 140, 70))
     d.rectangle([x, y + h - 14, x + w, y + h], fill=(60, 120, 58))
     for i, sx in enumerate((x + 60, x + 68, x + 76)):
@@ -377,14 +381,14 @@ def scene_cricket(d, x, y, w, h):
               outline=BLUE, width=2)
 
 
-def scene_desert(d, x, y, w, h):
+def paint_desert(d, x, y, w, h):
     d.rectangle([x, y, x + w, y + h], fill=(214, 186, 140))
     d.rectangle([x, y + h - 18, x + w, y + h], fill=(160, 120, 70))
     d.rectangle([x + 40, y + h - 34, x + 130, y + h - 18], fill=(60, 50, 40))
     d.ellipse([x + 150, y + 6, x + 166, y + 22], fill=(255, 220, 120))
 
 
-def scene_hospital(d, x, y, w, h):
+def paint_hospital(d, x, y, w, h):
     d.rectangle([x, y, x + w, y + h], fill=(235, 240, 245))
     d.rectangle([x + 20, y + h - 22, x + w - 20, y + h - 10], fill=(255, 255, 255),
                 outline=(150, 150, 150))
@@ -395,7 +399,7 @@ def scene_hospital(d, x, y, w, h):
     d.rectangle([x + 20, y + 18, x + 24, y + 22], fill=(255, 255, 255))
 
 
-def scene_t20(d, x, y, w, h):
+def paint_t20(d, x, y, w, h):
     d.rectangle([x, y, x + w, y + h], fill=(16, 24, 54))
     d.rectangle([x, y + h - 12, x + w, y + h], fill=(74, 140, 70))
     d.polygon([(x + 90, y + 8), (x + 104, y + 8), (x + 98, y + h - 14),
@@ -404,21 +408,28 @@ def scene_t20(d, x, y, w, h):
               outline=RED, width=2)
 
 
-LEAD_SCENES = [scene_cop31, scene_drones, scene_radars]
-MEDIUM_SCENES = [scene_tanker, scene_bridges, scene_ship, scene_fence,
-                 scene_chart, scene_f1, scene_cricket, scene_desert,
-                 scene_hospital, scene_t20]
+LEAD_SCENES = [paint_cop31, paint_drones, paint_radars]
+MEDIUM_SCENES = [paint_tanker, paint_bridges, paint_ship, paint_fence,
+                 paint_chart, paint_f1, paint_cricket, paint_desert,
+                 paint_hospital, paint_t20]
 
-# dotted world map: land as ellipses in a 0..100 x 0..50 space
+# dotted world map, v8: refined land ellipses in a 0..100 x 0..50 space,
+# shaped so each continent reads at a glance (the #1 pattern).
 LAND_ELLIPSES = [
-    (18, 13, 13, 8), (6, 10, 4, 4), (20, 23, 4, 3),      # N America
-    (33, 6, 3.5, 2.5),                                     # Greenland
-    (30, 33, 6, 9), (31, 43, 2, 3),                        # S America
-    (52, 11, 5, 4), (48, 8, 1.5, 1.5),                     # Europe + UK
-    (55, 28, 7, 9),                                         # Africa
-    (72, 13, 14, 8), (70, 24, 3, 4), (80, 24, 4, 3),       # Asia
-    (88, 16, 1.5, 2.5), (82, 30, 4, 1.5),                  # Japan, Indonesia
-    (84, 36, 5, 3.5), (92, 42, 1.5, 2),                    # Australia, NZ
+    # North America: main mass, Alaska, Hudson Bay, Central America taper
+    (16, 12, 12, 7), (7, 9, 4, 3.5), (24, 8, 5, 3), (22, 21, 3.5, 2.5),
+    (33, 5, 3, 2),                                     # Greenland
+    # South America: wide north, narrow south
+    (30, 31, 5.5, 8), (31, 41, 2, 3), (30, 46, 1.2, 2),
+    # Europe: main, UK, Scandinavia
+    (52, 10, 4.5, 3.5), (48, 7, 1.5, 1.5), (54, 5, 2.5, 2),
+    # Africa: wide north, tapering south
+    (55, 25, 6.5, 8), (56, 36, 3, 3),
+    # Asia: main mass, India, SE Asia, China coast, Japan, Indonesia
+    (72, 12, 13, 7), (68, 20, 4, 4), (78, 22, 3.5, 3), (84, 14, 3, 3),
+    (88, 13, 1.5, 2), (82, 30, 4, 1.5),
+    # Australia + New Zealand
+    (84, 36, 5, 3), (92, 42, 1.2, 1.8),
 ]
 
 # pin positions (story number -> (x, y) in the same 0..100 x 0..50 space)
@@ -432,18 +443,18 @@ PINS = {
 
 def draw_header(d):
     d.rectangle([0, 0, W, 22], fill=NAVY)
-    f = font(SANS_B, 11)
+    f = load_font(SANS_B, 11)
     d.text((12, 4), "THE WORLD IN ONE DAY", font=f, fill=(255, 255, 255))
     t = "36 STORIES \u00b7 7 REGIONS \u00b7 EVERY ONE DATED SUNDAY 22 NOVEMBER 2026"
-    d.text((W - 12 - text_w(d, t, f), 4), t, font=f, fill=(255, 255, 255))
+    d.text((W - 12 - measure(d, t, f), 4), t, font=f, fill=(255, 255, 255))
 
 
 def draw_masthead(d):
-    f = font(SERIF_B, 48)
+    f = load_font(SERIF_B, 48)
     t = "Sunday 22 November 2026"
-    d.text(((W - text_w(d, t, f)) / 2, 26), t, font=f, fill=INK)
-    f2 = font(SERIF, 15)
-    d.text(((W - text_w(d, KICKER, f2)) / 2, 80), KICKER, font=f2, fill=RED)
+    d.text(((W - measure(d, t, f)) / 2, 26), t, font=f, fill=INK)
+    f2 = load_font(SERIF, 15)
+    d.text(((W - measure(d, KICKER, f2)) / 2, 80), KICKER, font=f2, fill=RED)
 
 
 def draw_key_numbers(d):
@@ -453,11 +464,11 @@ def draw_key_numbers(d):
         x0 = 12 + i * cw
         if i:
             d.line([x0, y0 + 4, x0, y1 - 4], fill=(200, 190, 165), width=1)
-        f = font(SERIF_B, 28)
-        d.text((x0 + (cw - text_w(d, num, f)) / 2, y0 + 2), num, font=f, fill=RED)
-        f2 = font(SANS, 8)
-        for ln_i, ln in enumerate(wrap(d, cap, f2, cw - 12)):
-            d.text((x0 + (cw - text_w(d, ln, f2)) / 2, y0 + 34 + ln_i * 10),
+        f = load_font(SERIF_B, 28)
+        d.text((x0 + (cw - measure(d, num, f)) / 2, y0 + 2), num, font=f, fill=RED)
+        f2 = load_font(SANS, 8)
+        for ln_i, ln in enumerate(split_lines(d, cap, f2, cw - 12)):
+            d.text((x0 + (cw - measure(d, ln, f2)) / 2, y0 + 34 + ln_i * 10),
                    ln, font=f2, fill=GRAY)
 
 
@@ -468,9 +479,9 @@ def draw_region_strip(d):
     for name, count, color in REGIONS:
         w = (W - 24) * count / total
         d.rectangle([x, y0, x + w, y1], fill=color)
-        f = font(SANS_B, 10)
+        f = load_font(SANS_B, 10)
         t = "%s %d" % (name, count)
-        d.text((x + (w - text_w(d, t, f)) / 2, y0 + 3), t, font=f,
+        d.text((x + (w - measure(d, t, f)) / 2, y0 + 3), t, font=f,
                fill=(255, 255, 255))
         x += w
 
@@ -478,15 +489,15 @@ def draw_region_strip(d):
 def draw_utc_strip(d):
     y0, y1 = 172, 188
     d.rectangle([0, y0, W, y1], fill=NAVY)
-    f = font(SANS_B, 9)
+    f = load_font(SANS_B, 9)
     x = 12
-    x += chip(d, x, y0 + 3, "THE DAY IN UTC", (255, 200, 40), (20, 20, 20),
-              f=font(SANS_B, 9)) + 8
+    x += tag_chip(d, x, y0 + 3, "THE DAY IN UTC", (255, 200, 40), (20, 20, 20),
+                  f=load_font(SANS_B, 9)) + 8
     for t, label in UTC_EVENTS:
-        d.text((x, y0 + 4), t, font=font(SANS_B, 9), fill=(255, 200, 40))
-        x += text_w(d, t, font(SANS_B, 9)) + 4
+        d.text((x, y0 + 4), t, font=load_font(SANS_B, 9), fill=(255, 200, 40))
+        x += measure(d, t, load_font(SANS_B, 9)) + 4
         d.text((x, y0 + 4), label, font=f, fill=(255, 255, 255))
-        x += text_w(d, label, f) + 4
+        x += measure(d, label, f) + 4
         if (t, label) != UTC_EVENTS[-1]:
             d.text((x, y0 + 4), "\u00b7", font=f, fill=(150, 150, 170))
             x += 10
@@ -498,17 +509,18 @@ def draw_leads(d):
         x = 12 + i * (col_w + gap)
         y = 194
         LEAD_SCENES[i](d, x, y, col_w, 78)
-        chip(d, x + 4, y + 4, label, RED, f=font(SANS_B, 9))
-        badge(d, x + col_w - 14, y + 14, num)
-        d.text((x, y + 84), "%d \u00b7 %s" % (num, dateline), font=font(SANS_B, 10),
-               fill=RED)
-        cw = chip(d, x + col_w - 62, y + 82, cert, CERTAINTY_FILL[cert],
-                  f=font(SANS_B, 9))
-        draw_wrapped(d, x, y + 100, headline, font(SERIF_B, 21), col_w, INK, 24,
-                     max_lines=3)
-        draw_wrapped(d, x, y + 176, deck, font(SERIF, 12), col_w, INK, 15,
-                     max_lines=3)
-        d.text((x, y + 224), "Sources: " + sources, font=font(SANS, 9), fill=GRAY)
+        tag_chip(d, x + 4, y + 4, label, RED, f=load_font(SANS_B, 9))
+        num_badge(d, x + col_w - 14, y + 14, num)
+        d.text((x, y + 84), "%d \u00b7 %s" % (num, dateline),
+               font=load_font(SANS_B, 10), fill=RED)
+        tag_chip(d, x + col_w - 62, y + 82, cert, CERTAINTY_FILL[cert],
+                 f=load_font(SANS_B, 9))
+        put_lines(d, x, y + 100, headline, load_font(SERIF_B, 21), col_w, INK,
+                  24, limit=3)
+        put_lines(d, x, y + 176, deck, load_font(SERIF, 12), col_w, INK, 15,
+                  limit=3)
+        d.text((x, y + 224), "Sources: " + sources, font=load_font(SANS, 9),
+               fill=GRAY)
 
 
 def draw_medium(d):
@@ -520,57 +532,60 @@ def draw_medium(d):
             x = 12 + col * (col_w + gap)
             y = 436 + row * 148
             MEDIUM_SCENES[idx](d, x, y, col_w, 40)
-            chip(d, x + 3, y + 3, label, RED, f=font(SANS_B, 8))
-            badge(d, x + col_w - 11, y + 11, num, r=9)
-            d.text((x, y + 44), dateline, font=font(SANS_B, 8), fill=RED)
-            draw_wrapped(d, x, y + 58, headline, font(SERIF_B, 13), col_w, INK,
-                         15, max_lines=2)
-            draw_wrapped(d, x, y + 90, deck, font(SERIF, 10), col_w, INK, 12,
-                         max_lines=2)
-            d.text((x, y + 128), sources, font=font(SANS, 8), fill=GRAY)
-            chip(d, x + col_w - 58, y + 126, cert, CERTAINTY_FILL[cert],
-                 f=font(SANS_B, 8))
+            tag_chip(d, x + 3, y + 3, label, RED, f=load_font(SANS_B, 8))
+            num_badge(d, x + col_w - 11, y + 11, num, r=9)
+            d.text((x, y + 44), dateline, font=load_font(SANS_B, 8), fill=RED)
+            put_lines(d, x, y + 58, headline, load_font(SERIF_B, 13), col_w,
+                      INK, 15, limit=2)
+            put_lines(d, x, y + 90, deck, load_font(SERIF, 10), col_w, INK, 12,
+                      limit=2)
+            d.text((x, y + 128), sources, font=load_font(SANS, 8), fill=GRAY)
+            tag_chip(d, x + col_w - 58, y + 126, cert, CERTAINTY_FILL[cert],
+                     f=load_font(SANS_B, 8))
 
 
 def draw_map(d):
+    # v8: dark navy field, fine light dot grid, refined land, red pins
+    # (the #1 pattern -- v7's pale-green blobs were the weakest map
+    # in the top band).
     x0, y0, x1, y1 = 12, 748, 262, 884
-    d.text((x0, 726), "WHERE IT HAPPENED", font=font(SERIF_B, 13), fill=INK)
-    d.rectangle([x0, y0, x1, y1], fill=LIGHT_BLUE)
+    d.text((x0, 726), "WHERE IT HAPPENED", font=load_font(SERIF_B, 13), fill=INK)
+    d.rectangle([x0, y0, x1, y1], fill=MAP_NAVY)
     mw, mh = x1 - x0, y1 - y0
-    # dotted land
-    step = 7
+    step = 5
     for gy in range(y0 + 3, y1 - 2, step):
         for gx in range(x0 + 3, x1 - 2, step):
             nx = (gx - x0) / mw * 100
             ny = (gy - y0) / mh * 50
             for cx, cy, rx, ry in LAND_ELLIPSES:
                 if ((nx - cx) / rx) ** 2 + ((ny - cy) / ry) ** 2 <= 1:
-                    d.ellipse([gx - 2, gy - 2, gx + 2, gy + 2], fill=LAND)
+                    d.ellipse([gx - 1.5, gy - 1.5, gx + 1.5, gy + 1.5],
+                              fill=MAP_DOT)
                     break
     for num, (nx, ny) in PINS.items():
         px = x0 + nx / 100 * mw
         py = y0 + ny / 50 * mh
-        badge(d, px, py, num, r=8)
+        num_badge(d, px, py, num, r=8, fill=PIN_RED)
 
 
 def draw_also(d):
     x0 = 272
     d.text((x0, 726), "ALSO ON SUNDAY 22 NOVEMBER \u2014 23 MORE STORIES",
-           font=font(SERIF_B, 13), fill=RED)
-    f_num = font(SANS_B, 10)
-    f_txt = font(SANS, 10)
-    f_src = font(SANS, 10)
+           font=load_font(SERIF_B, 13), fill=RED)
+    f_num = load_font(SANS_B, 10)
+    f_txt = load_font(SANS, 10)
+    f_src = load_font(SANS, 10)
     for i, (num, region, headline, source) in enumerate(ALSO):
         col = 0 if i < 12 else 1
         row = i if i < 12 else i - 12
         x = x0 + col * 372
         y = 748 + row * 13
         d.text((x, y), "%d %s:" % (num, region), font=f_num, fill=RED)
-        tx = x + text_w(d, "%d %s: " % (num, region), f_num)
+        tx = x + measure(d, "%d %s: " % (num, region), f_num)
         d.text((tx, y), headline, font=f_txt, fill=INK)
-        sx = tx + text_w(d, headline, f_txt) + 4
+        sx = tx + measure(d, headline, f_txt) + 4
         d.text((sx, y), "\u00b7 " + source, font=f_src, fill=GRAY)
-        if sx + text_w(d, "\u00b7 " + source, f_src) > x0 + (col + 1) * 372 - 4:
+        if sx + measure(d, "\u00b7 " + source, f_src) > x0 + (col + 1) * 372 - 4:
             raise ValueError("ALSO item overflows column: %d %s" % (num, headline))
 
 
@@ -578,21 +593,21 @@ def draw_bottom(d):
     y0 = 920
     d.rectangle([12, y0, W - 12, y0 + 44], outline=RED, width=2)
     d.rectangle([12, y0, 104, y0 + 44], fill=RED)
-    d.text((18, y0 + 14), "DATE CHECK", font=font(SANS_B, 11),
+    d.text((18, y0 + 14), "DATE CHECK", font=load_font(SANS_B, 11),
            fill=(255, 255, 255))
-    draw_wrapped(d, 112, y0 + 4, DATE_CHECK, font(SERIF, 10), W - 12 - 112 - 8,
-                 INK, 13, max_lines=3)
-    f = font(SANS, 9)
+    put_lines(d, 112, y0 + 4, DATE_CHECK, load_font(SERIF, 10),
+              W - 12 - 112 - 8, INK, 13, limit=3)
+    f = load_font(SANS, 9)
     t = ("HOW TO READ THE TAGS \u2014 \u2713 CONFIRMED official / 2+ outlets "
          "\u00b7 REPORTED wires / one source \u00b7 CLAIM one party's claim, "
          "contested \u00b7 \u2713 ONGOING still developing")
-    d.text(((W - text_w(d, t, f)) / 2, 970), t, font=f, fill=GRAY)
-    f2 = font(SERIF_B, 14)
+    d.text(((W - measure(d, t, f)) / 2, 970), t, font=f, fill=GRAY)
+    f2 = load_font(SERIF_B, 14)
     t2 = "THE SUNDAY LEDGER \u00b7 SUNDAY 22 NOVEMBER 2026 \u00b7 36 STORIES \u00b7 7 REGIONS"
-    d.text(((W - text_w(d, t2, f2)) / 2, 986), t2, font=f2, fill=INK)
-    f3 = font(SANS, 8)
+    d.text(((W - measure(d, t2, f2)) / 2, 986), t2, font=f2, fill=INK)
+    f3 = load_font(SANS, 8)
     t3 = "Scenes are drawn illustrations of reported events, not photographs. Sources named beside each story."
-    d.text(((W - text_w(d, t3, f3)) / 2, 1004), t3, font=f3, fill=GRAY)
+    d.text(((W - measure(d, t3, f3)) / 2, 1004), t3, font=f3, fill=GRAY)
 
 
 def render():
@@ -616,7 +631,7 @@ def main():
     img1 = render()
     img1.save(out, format="PNG")
     h1 = hashlib.sha256(open(out, "rb").read()).hexdigest()
-    tmp = "/tmp/ni22-v7-render2.png"
+    tmp = "/tmp/ni22-v8-render2.png"
     img2 = render()
     img2.save(tmp, format="PNG")
     h2 = hashlib.sha256(open(tmp, "rb").read()).hexdigest()

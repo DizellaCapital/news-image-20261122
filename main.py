@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""THE SUNDAY LEDGER v7 -- news-image-20261122 entry program.
+"""THE SUNDAY LEDGER v8 -- news-image-20261122 entry program.
 
 Copies the pre-rendered front page (entry.png, 1024x1024 PNG, at most
 1 MiB) byte-for-byte to the output directory the grader provides
@@ -9,11 +9,10 @@ nothing beyond the stdlib and never draws anything itself. The image
 is drawn by render.py in this same directory (PIL, run locally); this
 program only validates the bytes and copies them.
 
-One named change vs v6-fix: the COP31 lead is corrected -- the final
-text landed on Sunday morning (headline + deck + kicker + UTC strip),
-the Iran lead deck names Al-Riffa and Awali, the DATE CHECK drops the
-uncorroborated Antarctic IPO item, and the world map is a recognisable
-dotted world map.
+Named change vs v7: the COP31 lead illustration is cleaned up (the
+sign whose 'FUELS' line was clipped is gone -- the conference scene
+has no embedded text) and the world map is redrawn with recognisable
+land (dark field, fine dot grid, red numbered pins).
 """
 
 import hashlib
@@ -53,7 +52,7 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "wb") as fh:
         fh.write(data)
     print(
